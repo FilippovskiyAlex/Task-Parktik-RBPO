@@ -1,0 +1,140 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9-eclipse-temurin-21
+    steps:
+    - uses: actions/checkout@v4
+    - run: chmod +x ./mvnw
+    - run: ./mvnw clean package
+    - uses: actions/upload-artifact@v4
+      with:
+        name: java-app
+        path: target/*.jar
+        retention-days: 14
+# Практическое задание №3
+  sast-scan:
+    name: SAST Analysis
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep:latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    - run: mkdir -p reports
+    - name: Run Semgrep Scan
+      run: |
+        semgrep scan \
+          --config "p/java" \
+          --config "p/secrets" \
+          --config "p/owasp-top-ten" \
+          --sarif \
+          --output reports/semgrep-results.sarif || true
+    - name: Save reports
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        name: reports-semgrep
+        sarif_file: reports/semgrep-results.sarif
+        retention-days: 14
+# Практическое задание №4
+  dependency_check:
+    name: SCA Analysis
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9-eclipse-temurin-21
+    steps:
+    - uses: actions/checkout@v4
+    - run: mkdir -p reports
+    - run: chmod +x ./mvnw
+    - name: Run OWASP Dependency-Check
+      run: |
+        mvn org.owasp:dependency-check-maven:check \
+        -Dformat=HTML \
+        -DoutputDirectory=reports \
+        -DsuppressionFile=suppressions.xml || true
+    - name: Save reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: reports-owasp
+        path: target/dependency-check-report.html
+        retention-days: 14
+# Практическое задание №5.1
+  dast-base-scan:
+    name: DAST Base Analysis
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/zaproxy/zaproxy:latest
+      options: --user root
+    
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Java 21
+      run: |
+        apt-get update
+        apt-get install -y wget
+        cd /opt
+        wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz
+        tar -xzf openjdk-21.0.2_linux-x64_bin.tar.gz
+        export JAVA_HOME=/opt/jdk-21.0.2
+        export PATH=$JAVA_HOME/bin:$PATH
+        java -version
+
+    - name: Download app
+      uses: actions/download-artifact@v4
+      with:
+        name: java-app
+
+    - run: mkdir -p /zap/wrk/
+    - run: /opt/jdk-21.0.2/bin/java -jar ./course-management-0.0.1-SNAPSHOT.jar & sleep 30
+    - run: zap-baseline.py -t http://localhost:8080 -r report_site.html || true
+    - run: cp /zap/wrk/report_site.html report_site.html
+    - uses: actions/upload-artifact@v4
+      with:
+        name: zap-base-report
+        path: ./report_site.html
+        retention-days: 14
+# Практическое задание №5.2
+  dast-api-scan:
+    name: DAST API Analysis
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/zaproxy/zaproxy:latest
+      options: --user root
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Java 21
+      run: |
+        apt-get update
+        apt-get install -y wget
+        cd /opt
+        wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz
+        tar -xzf openjdk-21.0.2_linux-x64_bin.tar.gz
+        export JAVA_HOME=/opt/jdk-21.0.2
+        export PATH=$JAVA_HOME/bin:$PATH
+        java -version
+    - name: Download app
+      uses: actions/download-artifact@v4
+      with:
+        name: java-app
+    - run: mkdir -p /zap/wrk/
+    - run: /opt/jdk-21.0.2/bin/java -jar ./course-management-0.0.1-SNAPSHOT.jar & sleep 30
+    - run: zap-api-scan.py -t http://localhost:8080 -f openapi -r report_site.html || true
+    - run: cp /zap/wrk/report_site.html report_site.html
+    - uses: actions/upload-artifact@v4
+      with:
+        name: zap-api-report
+        path: ./report_site.html
+        retention-days: 14
