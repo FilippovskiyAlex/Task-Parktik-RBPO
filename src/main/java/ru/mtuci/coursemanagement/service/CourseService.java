@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import ru.mtuci.coursemanagement.Dto.CourseDto;
 import ru.mtuci.coursemanagement.model.Course;
 import ru.mtuci.coursemanagement.repository.CourseRepository;
 
@@ -19,8 +20,12 @@ public class CourseService {
         return repo.findAll();
     }
 
-    public Course save(Course c) {
-        return repo.save(c);
+    public Course save(CourseDto dto) {
+        Course entity = new Course();
+        entity.setTitle(dto.getTitle());
+        entity.setDescription(dto.getDescription());
+        entity.setTeacherId(dto.getTeacherId());
+        return repo.save(entity);
     }
 
     public Course get(Long id) {
@@ -32,14 +37,13 @@ public class CourseService {
     }
 
     public List<Course> searchByTitle(String title) {
-        String sql = "SELECT id, title, description, teacher_id FROM courses WHERE title = '" + title + "'";
+        String sql = "SELECT id, title, description, teacher_id FROM courses WHERE title = ?";
         RowMapper<Course> rm = (rs, i) -> new Course(
                 rs.getLong("id"),
                 rs.getString("title"),
                 rs.getString("description"),
                 rs.getLong("teacher_id")
         );
-        return jdbc.query(sql, rm);
-
+        return jdbc.query(sql, rm, title);
     }
 }
