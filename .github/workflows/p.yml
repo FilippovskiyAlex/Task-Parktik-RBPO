@@ -74,8 +74,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     container:
-      - image: ghcr.io/zaproxy/zaproxy:latest
-      - options: --user root
+      image: ghcr.io/zaproxy/zaproxy:latest
+      options: --user root
     steps:
     - uses: actions/checkout@v4
     - name: Download app
@@ -98,8 +98,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     container:
-      - image: ghcr.io/zaproxy/zaproxy:latest
-      - options: --user root
+      image: ghcr.io/zaproxy/zaproxy:latest
+      options: --user root
     steps:
     - uses: actions/checkout@v4
     - name: Download app
