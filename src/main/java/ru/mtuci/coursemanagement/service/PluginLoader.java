@@ -12,12 +12,13 @@ import java.net.URLClassLoader;
 @Component
 public class PluginLoader {
     @Value("${app.plugin.url:}")
-    private String pluginUrl;
+    private String pluginUrl; // нет валидации этого url / может быть скомпрометирован
 
     public void tryLoad() {
         if (pluginUrl == null || pluginUrl.isBlank()) return;
         try {
             URL url = new URL(pluginUrl);
+            // Загрузка с теми же правами, что и приложение
             try (URLClassLoader cl = new URLClassLoader(new URL[]{url}, this.getClass().getClassLoader())) {
                 Class<?> clazz = Class.forName("com.example.PluginMain", true, cl);
                 Method m = clazz.getDeclaredMethod("init");
