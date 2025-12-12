@@ -1,4 +1,4 @@
-package ru.mtuci.coursemanagement.Dto;
+package ru.mtuci.coursemanagement.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
